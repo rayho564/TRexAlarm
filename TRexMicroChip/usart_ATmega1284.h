@@ -115,4 +115,20 @@ unsigned char USART_Receive(unsigned char usartNum)
 	}
 }
 
+void USART_SendString( unsigned char *sendMe, unsigned char usartNum ) {
+
+	if (usartNum != 1) {
+		for (int i = 0; i < strlen(sendMe); i++){
+			while (( UCSR0A & (1<<UDRE0))  == 0){};
+			UDR0 = sendMe[i];
+		}
+	}
+	else {
+		for (int i = 0; i < strlen(sendMe); i++){
+			while( (UCSR1A & (1 << UDRE1)) ==0);
+			UDR1 = sendMe[i];
+		}
+	}
+}
+
 #endif USART_1284_H
