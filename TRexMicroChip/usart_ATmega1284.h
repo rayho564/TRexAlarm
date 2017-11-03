@@ -7,6 +7,7 @@
 #ifndef USART_1284_H
 #define USART_1284_H
 
+#include <string.h>
 // USART Setup Values
 #define F_CPU 8000000UL // Assume uC operates at 8MHz
 #define BAUD_RATE 9600

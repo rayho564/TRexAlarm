@@ -1,10 +1,10 @@
 /*
- * Slave.c
+ * TRex_main.c
  *
- * Created: 10/4/2017 2:44:26 PM
- * Author : LovePoki
+ * Created: 10/31/2017 1:20:26 PM
+ * Author : Raymond Ho
  */ 
- 
+
 #include <avr/io.h>
 #include "usart_ATmega1284.h"
 
@@ -16,34 +16,20 @@
 #include <util/delay.h>
 #include <avr/interrupt.h>
 
-void initUSART(unsigned char usartNum);
-// Empties the UDR register of the desired USART, this will cause USART_HasReceived to return false.
-void USART_Flush(unsigned char usartNum);
 
-// Returns a non-zero number if the desired USART is ready to send data.
-// Returns 0 if the desired USART is NOT ready to send data.
-unsigned char USART_IsSendReady(unsigned char usartNum);
+#define USS_PORT	PORTA
+#define USS_DDR		DDRA
+#define Echo 		PA0
+#define Trigger 	PA1
+#define ECHOMSK (1<<Echo)
 
-// Returns a non-zero number if the desired USART has finished sending data.
-// Returns 0 if the desired USART is NOT finished sending data.
-unsigned char USART_HasTransmitted(unsigned char usartNum);
-
-// Returns a non-zero number if the desired USART has received a byte of data.
-// Returns 0 if the desired USART has NOT received a byte of data.
-unsigned char USART_HasReceived(unsigned char usartNum);
-
-// Writes a byte of data to the desired USARTs UDR register.
-// The data is then sent serially over the TXD pin of the desired USART.
-// Call this function after USART_IsSendReady returns 1.
-void USART_Send(unsigned char data, unsigned char usartNum);
-
-// Returns the data received on RXD pin of the desired USART.
-// Call this function after USART_HasReceived returns 1.
-unsigned char USART_Receive(unsigned char usartNum);
+void USS_Trigger(void);
+volatile uint16_t Pulse_Time;
 
 //--------Shared Variables----------------------------------------------------
 	char Data_in;
-
+	char DistinStr[25];
+	uint16_t Distance = 0;
 //--------End Shared Variables------------------------------------------------
 
 //--------User defined FSMs---------------------------------------------------
@@ -71,14 +57,13 @@ int SMTick1(int state) {
 		{
 			state = SM1_release;
 		}
-		/*else
-		{
-			state = SM1_neither;
-		}*/
+		//else
+		//{
+			//state = SM1_neither;
+		//}
 		break;
 
 		SM1_press:
-			Data_in = 0;
 			state = SM1_wait;
 		break;
 
@@ -112,6 +97,22 @@ int SMTick1(int state) {
 				//USART_Send('A', 0);
 				PORTB = 0x01;
 			}
+			Data_in = 0;
+
+			USS_Trigger(); // triggering
+			while ((PINA & ECHOMSK) == 0) { ; } //wait for rising edge of Echo
+			TCCR1B = (1<<CS10);                 //start timer div1
+			while ((PINA & ECHOMSK) != 0) { ; } //wait for falling edge
+			TCCR1B = 0;                         //stop timer
+			Pulse_Time = TCNT1; // take what's in TCNT1 timer
+			TCNT1 = 0x00; //reset what's in TCNT1 timer
+			
+			Distance = Pulse_Time / 588.2; // get distance measurement
+			
+			sprintf(DistinStr,"%d",Distance); // conversion
+			USART_SendString(DistinStr, 0);
+			//_delay_ms(50);
+			TimerOn();
 
 		break;
 
@@ -128,10 +129,10 @@ int SMTick1(int state) {
 		break;
 
 		case SM1_neither:
-			/*if( USART_IsSendReady(0) != 0 )
-			{
-				USART_Send( "WTF are you typing", 0);
-			}*/
+			//if( USART_IsSendReady(0) != 0 )
+			//{
+				//USART_Send( "WTF are you typing", 0);
+			//}
 		break;
 
 		default:
@@ -145,16 +146,15 @@ int SMTick1(int state) {
 
 int main(void)
 {
-	/*MCUCR = (1<<JTD);
-	MCUCR = (1<<JTD);
-	DDRD = 0xF0; PORTC = 0x0F;
-	DDRA = 0xFF; PORTA = 0x00; // LCD data lines
-	DDRC = 0xFF; PORTC = 0x00; // LCD control lines
-	*/
+	//MCUCR = (1<<JTD);
+	//MCUCR = (1<<JTD);
+	//DDRD = 0xF0; PORTC = 0x0F;
+	//DDRA = 0xFF; PORTA = 0x00; // LCD data lines
+	//DDRC = 0xFF; PORTC = 0x00; // LCD control lines
 	
-
-	DDRB = 0xFF; PORTB = 0;		/* make PORT as output port */
-
+	DDRB = 0xFF; PORTB = 0x00;
+	USS_DDR |= 1<<Trigger; // setting trigger as output
+	USS_DDR &=~1<<Echo;    //  and echo as input
 
 	// Period for the tasks
 	unsigned long int SMTick1_calc = 150;
@@ -176,7 +176,7 @@ int main(void)
 		
 	//Declare an array of tasks
 	static task task1;
-	task *tasks[] = { &task1 };
+	task *tasks[] = { &task1 }; // remember to add tasks back in for multiple
 	const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
 
 	// Task 1
@@ -196,10 +196,9 @@ int main(void)
 
 	initUSART(0);
 
-
 	unsigned short i; // Scheduler for-loop iterator
 	
-    /*while (1) 
+    while (1) 
     {
 		for ( i = 0; i < numTasks; i++ ) {
 			// Task is ready to tick
@@ -214,25 +213,14 @@ int main(void)
 		while(!TimerFlag);
 		TimerFlag = 0;
 
-	}*/
-	unsigned char duh = 'A';
-
-	while(1){
-		//USART_Send(duh, 0);
-		//USART_Send('b', 0);
-
-
-		if( USART_HasReceived(0) != 0 )
-		{
-			
-			Data_in = USART_Receive(0);
-			USART_Flush(0);
-
-			if(Data_in == '1')
-			{
-				USART_Send(duh, 0);
-				PORTB = 0x01;
-			}
-		}
 	}
+	
+}
+
+void USS_Trigger()
+{
+	USS_PORT |= 1<<Trigger; //turn on trigger
+	_delay_us(10);
+	USS_PORT &=~ 1<<Trigger; //turn off trigger
+	
 }
