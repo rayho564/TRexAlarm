@@ -3,6 +3,8 @@
  *
  * Created: 10/31/2017 1:20:26 PM
  * Author : Raymond Ho
+ *
+ * There is an issue where I have conflicting Timer's. Timer.h for scheduler and Timer for our Ranging detector causes a delay to read the value in.
  */ 
 
 #include <avr/io.h>
