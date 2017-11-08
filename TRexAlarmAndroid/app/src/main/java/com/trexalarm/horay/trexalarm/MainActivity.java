@@ -33,6 +33,7 @@ public class MainActivity extends Activity {
     // SPP UUID service - this should work for most devices
     private static final UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
+    //TODO::Change to array of MAC addresses
     // String for MAC address
     private static String address;
 
@@ -54,29 +55,35 @@ public class MainActivity extends Activity {
 
         bluetoothIn = new Handler() {
             public void handleMessage(android.os.Message msg) {
-                if (msg.what == handlerState) {                                     //if message is what we want
-                    String readMessage = (String) msg.obj;                                                                // msg.arg1 = bytes from connect thread
-                    recDataString.append(readMessage);                                      //keep appending to string until ~
-                    int endOfLineIndex = recDataString.indexOf("~");                    // determine the end-of-line
-                    if (endOfLineIndex > 0) {                                           // make sure there data before ~
-                        String dataInPrint = recDataString.substring(0, endOfLineIndex);    // extract string
+                if (msg.what == handlerState) {                                                     //if message is what we want
+                    String readMessage = (String) msg.obj;                                          // msg.arg1 = bytes from connect thread
+                    recDataString.append(readMessage);                                              //keep appending to string until ~
+                    int endOfLineIndex = recDataString.indexOf("~");                                // determine the end-of-line
+                    if (endOfLineIndex > 0) {                                                       // make sure there data before ~
+                        String dataInPrint = recDataString.substring(0, endOfLineIndex);            // extract string
                         txtString.setText("Data Received = " + dataInPrint);
-                        int dataLength = dataInPrint.length();                          //get length of data received
+                        int dataLength = dataInPrint.length();                                      //get length of data received
                         txtStringLength.setText("String Length = " + String.valueOf(dataLength));
 
-                        if (recDataString.charAt(0) == '#')                             //if it starts with # we know it is what we are looking for
+                        sensorView0.setText("string sent: " + recDataString); // show what we received
+                        //When sent from bluetooth all data was sent at once
+                        /*if (recDataString.charAt(0) == '#')                                         //if it starts with # we know it is what we are looking for
                         {
-                            String sensor0 = recDataString.substring(1, 5);             //get sensor value from string between indices 1-5
-                            String sensor1 = recDataString.substring(6, 10);            //same again...
+                            String sensor0 = recDataString.substring(1, 5);                         //get sensor value from string between indices 1-5
+                            String sensor1 = recDataString.substring(6, 10);                        //same again...
                             String sensor2 = recDataString.substring(11, 15);
                             String sensor3 = recDataString.substring(16, 20);
 
-                            sensorView0.setText(" Sensor 0 Voltage = " + sensor0 + "V");    //update the textviews with sensor values
+                            sensorView0.setText(" Sensor 0 Voltage = " + sensor0 + "V");            //update the textviews with sensor values
                             sensorView1.setText(" Sensor 1 Voltage = " + sensor1 + "V");
                             sensorView2.setText(" Sensor 2 Voltage = " + sensor2 + "V");
                             sensorView3.setText(" Sensor 3 Voltage = " + sensor3 + "V");
-                        }
-                        recDataString.delete(0, recDataString.length());                    //clear all string data
+                        }*/
+                        /*if(recDataString.equals("Alarm")){
+                            Intent buzz= new Intent(MainActivity.this,backgroundService.class);
+                            MainActivity.this.startService(buzz);
+                        }*/
+                        recDataString.delete(0, recDataString.length());                            //clear all string data
                         // strIncom =" ";
                         dataInPrint = " ";
                     }
@@ -84,7 +91,7 @@ public class MainActivity extends Activity {
             }
         };
 
-        btAdapter = BluetoothAdapter.getDefaultAdapter();       // get Bluetooth adapter
+        btAdapter = BluetoothAdapter.getDefaultAdapter();                                           // get Bluetooth adapter
         checkBTState();
 
         // Set up onClick listeners for buttons to send 1 or 0 to turn on/off LED
@@ -92,6 +99,8 @@ public class MainActivity extends Activity {
             public void onClick(View v) {
                 mConnectedThread.write("0");    // Send "0" via Bluetooth
                 Toast.makeText(getBaseContext(), "Turn off LED", Toast.LENGTH_SHORT).show();
+                Intent buzz= new Intent(MainActivity.this,backgroundService.class);
+                MainActivity.this.startService(buzz);
             }
         });
 
@@ -106,7 +115,7 @@ public class MainActivity extends Activity {
     private BluetoothSocket createBluetoothSocket(BluetoothDevice device) throws IOException {
 
         return  device.createRfcommSocketToServiceRecord(BTMODULEUUID);
-        //creates secure outgoing connecetion with BT device using UUID
+        //creates secure outgoing connection with BT device using UUID
     }
 
     @Override
@@ -148,13 +157,31 @@ public class MainActivity extends Activity {
         mConnectedThread.write("x");
     }
 
-    @Override
+    //we want to leave btSockets open when leaving activity because of background checks.
+    /*@Override
     public void onPause()
     {
         super.onPause();
         try
         {
             //Don't leave Bluetooth sockets open when leaving activity
+            btSocket.close();
+        } catch (IOException e2) {
+            //insert code to deal with this
+        }
+    }*/
+    @Override
+    public void onDestroy()
+    {
+        super.onDestroy();
+
+        Intent intent = new Intent(MainActivity.this, backgroundService.class);
+        MainActivity.this.stopService(intent);
+
+        super.onPause();
+        try
+        {
+            //Don't leave Bluetooth sockets open when leaving destroying activity
             btSocket.close();
         } catch (IOException e2) {
             //insert code to deal with this
@@ -174,6 +201,7 @@ public class MainActivity extends Activity {
             }
         }
     }
+
 
     //create new class for connect thread
     private class ConnectedThread extends Thread {
@@ -224,4 +252,6 @@ public class MainActivity extends Activity {
             }
         }
     }
+
+
 }

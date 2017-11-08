@@ -116,6 +116,20 @@ unsigned char USART_Receive(unsigned char usartNum)
 	}
 }
 
+unsigned char* USART_GetString (unsigned char usartNum)
+{
+	
+	char line[30];
+	int index  i = 0;
+	while(1) {
+		line[i] = USART_Receive();
+		if (line[i] == '\n') break;
+		i++;
+	}
+	line[i] = 0;
+
+}
+
 void USART_SendString( unsigned char *sendMe, unsigned char usartNum ) {
 
 	if (usartNum != 1) {

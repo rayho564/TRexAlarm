@@ -1,0 +1,28 @@
+package com.trexalarm.horay.trexalarm;
+
+import android.app.IntentService;
+import android.content.Intent;
+
+/**
+ * Created by HoRay on 11/7/2017.
+ */
+
+public class backgroundIntentService extends IntentService {
+    /**
+     * Creates an IntentService.  Invoked by your subclass's constructor.
+     *
+     * @param name Used to name the worker thread, important only for debugging.
+     */
+    public backgroundIntentService(String name) {
+        super(name);
+    }
+
+    @Override
+        protected void onHandleIntent(Intent workIntent) {
+            // Gets data from the incoming Intent
+            String dataString = workIntent.getDataString();
+           // ...
+            // Do work here, based on the contents of dataString
+            //...
+        }
+}

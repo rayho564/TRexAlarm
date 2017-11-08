@@ -32,14 +32,23 @@ volatile uint16_t Pulse_Time;
 	char Data_in;
 	char DistinStr[25];
 	uint16_t Distance = 0;
+	int def_dist = 0;
+	int dist_diff = 2; //2 cm diff will cause alarm
+	char name[30] = "Default_name";
 //--------End Shared Variables------------------------------------------------
 
 //--------User defined FSMs---------------------------------------------------
-enum SM1_States { SM1_wait, SM1_press, SM1_release, SM1_neither };
+enum SM1_States { SM1_wait, SM1_on, SM1_polling, SM1_rename };
 //Enumeration of states.
 int SMTick1(int state) {
 	// Local Variables
 	
+
+	// 1 = on
+	// 2 = off
+	// 3 = set new default
+	// 4 = set name
+
 	//transitions
 	switch (state) {
 		case SM1_wait:
@@ -51,32 +60,47 @@ int SMTick1(int state) {
 			USART_Flush(0);
 			
 		}
+		//If 1, start pulsing to set default distance
 		if(Data_in =='1')
 		{
-			state = SM1_press;
+			state = SM1_on;
 		}
 		else if(Data_in == '2')
 		{
-			state = SM1_release;
+			state = SM1_wait;
 		}
-		//else
-		//{
-			//state = SM1_neither;
-		//}
+		
 		break;
 
-		SM1_press:
-			state = SM1_wait;
+		SM1_on:
+			state = SM1_polling;
 		break;
 
-		case SM1_release:
+		case SM1_polling:
+			if( USART_HasReceived(0) != 0 )
+			{
+				
+				Data_in = USART_Receive(0);
+				USART_Flush(0);
+				
+			}
+			
+			if(Data_in == 2)
+			{
+				state = SM1_wait;
+			}
+			else if(Data_in == 3)
+			{
+				state = SM1_on;
+			}
+			else if(Data_in == 4){
+				state = SM1_rename;
+			}
+		break;
+
+		case SM1_rename:
 			Data_in = 0;
-			state = SM1_wait;
-		break;
-
-		case SM1_neither:
-			Data_in = 0;
-			state = SM1_wait;
+			state = SM1_polling;
 		break;
 
 		default:
@@ -91,50 +115,41 @@ int SMTick1(int state) {
 
 		break;
 
-		case SM1_press:
-			//send status of LED i.e. LED ON
+		case SM1_on:
+			//send status of PULSE i.e. PULSE ON
 			if( USART_IsSendReady(0) != 0 )
 			{
-				USART_SendString( "LED_ON", 0);
+				USART_SendString( "PULSE_ON", 0);
 				//USART_Send('A', 0);
 				PORTB = 0x01;
 			}
 			Data_in = 0;
-
-			USS_Trigger(); // triggering
-			while ((PINA & ECHOMSK) == 0) { ; } //wait for rising edge of Echo
-			TCCR1B = (1<<CS10);                 //start timer div1
-			while ((PINA & ECHOMSK) != 0) { ; } //wait for falling edge
-			TCCR1B = 0;                         //stop timer
-			Pulse_Time = TCNT1; // take what's in TCNT1 timer
-			TCNT1 = 0x00; //reset what's in TCNT1 timer
-			
-			Distance = Pulse_Time / 588.2; // get distance measurement
-			
-			sprintf(DistinStr,"%d",Distance); // conversion
-			USART_SendString(DistinStr, 0);
-			//_delay_ms(50);
-			TimerOn();
+			//get first distance to set default
+			def_dist = get_send_dist();
 
 		break;
 
-		case SM1_release:
+		case SM1_polling:
 
-			// send status of LED i.e. LED OFF Sending B for off
+			//Constantly polling to see if different from default
 			if( USART_IsSendReady(0) != 0 )
 			{
-				USART_SendString( "LED_OFF", 0);
-				PORTB = 0x00;
+				USART_SendString( "Polling", 0);
+				//PORTB = 0x00;
 			}
-		
-		
+			get_send_dist();
+			if((Distance < def_dist-dist_diff) || (Distance > def_dist+dist_diff))
+			{
+				//Send Alarm to alert if Distance is +-2 compared to default
+				USART_SendString("Alarm", 0);
+				USART_SendString(name, 0);
+				
+			}
+					
 		break;
 
-		case SM1_neither:
-			//if( USART_IsSendReady(0) != 0 )
-			//{
-				//USART_Send( "WTF are you typing", 0);
-			//}
+		case SM1_rename:
+			name = USART_GetString();
 		break;
 
 		default:
@@ -225,4 +240,21 @@ void USS_Trigger()
 	_delay_us(10);
 	USS_PORT &=~ 1<<Trigger; //turn off trigger
 	
+}
+
+void get_send_dist(){
+	USS_Trigger(); // triggering
+	while ((PINA & ECHOMSK) == 0) { ; } //wait for rising edge of Echo
+	TCCR1B = (1<<CS10);                 //start timer div1
+	while ((PINA & ECHOMSK) != 0) { ; } //wait for falling edge
+	TCCR1B = 0;                         //stop timer
+	Pulse_Time = TCNT1; // take what's in TCNT1 timer
+	TCNT1 = 0x00; //reset what's in TCNT1 timer
+	
+	Distance = Pulse_Time / 588.2; // get distance measurement
+	
+	sprintf(DistinStr,"%d",Distance); // conversion
+	USART_SendString(DistinStr, 0);
+	//_delay_ms(50);
+	TimerOn();
 }

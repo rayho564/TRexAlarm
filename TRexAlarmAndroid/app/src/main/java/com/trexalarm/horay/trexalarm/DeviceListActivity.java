@@ -80,7 +80,11 @@ public class DeviceListActivity extends Activity {
             mPairedDevicesArrayAdapter.add(noDevices);
         }
     }
-
+    //TODO:: This is where you could have multiple bluetooth activities at the same time
+    //       Send an array of extras of device actives not just one.
+    //       Set text to To Connect.
+    //       Allow user to know to "Select all sensors" then a button that says connect
+    //       If none selected error out.
     // Set up on-click listener for the list (nicked this - unsure)
     private OnItemClickListener mDeviceClickListener = new OnItemClickListener() {
         public void onItemClick(AdapterView<?> av, View v, int arg2, long arg3) {
