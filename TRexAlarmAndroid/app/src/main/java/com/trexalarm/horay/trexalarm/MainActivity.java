@@ -20,15 +20,15 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
 
     Button btnOn, btnOff;
-    TextView txtArduino, txtString, txtStringLength, sensorView0, sensorView1, sensorView2, sensorView3;
+    TextView txtArduino, txtString, txtStringLength, received, status, nameFromDevice;
     Handler bluetoothIn;
 
     final int handlerState = 0;                        //used to identify handler message
     private BluetoothAdapter btAdapter = null;
     private BluetoothSocket btSocket = null;
-    private StringBuilder recDataString = new StringBuilder();
 
     private ConnectedThread mConnectedThread;
+    private String befEndLine = "";
 
     // SPP UUID service - this should work for most devices
     private static final UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
@@ -48,46 +48,51 @@ public class MainActivity extends Activity {
         btnOff = (Button) findViewById(R.id.buttonOff);
         txtString = (TextView) findViewById(R.id.txtString);
         txtStringLength = (TextView) findViewById(R.id.testView1);
-        sensorView0 = (TextView) findViewById(R.id.sensorView0);
-        sensorView1 = (TextView) findViewById(R.id.sensorView1);
-        sensorView2 = (TextView) findViewById(R.id.sensorView2);
-        sensorView3 = (TextView) findViewById(R.id.sensorView3);
+        status = (TextView) findViewById(R.id.status);
+        nameFromDevice = (TextView) findViewById(R.id.nameFromDevice);
+        received = (TextView) findViewById(R.id.received);
 
         bluetoothIn = new Handler() {
             public void handleMessage(android.os.Message msg) {
-                if (msg.what == handlerState) {                                                     //if message is what we want
-                    String readMessage = (String) msg.obj;                                          // msg.arg1 = bytes from connect thread
-                    recDataString.append(readMessage);                                              //keep appending to string until ~
-                    int endOfLineIndex = recDataString.indexOf("~");                                // determine the end-of-line
-                    if (endOfLineIndex > 0) {                                                       // make sure there data before ~
-                        String dataInPrint = recDataString.substring(0, endOfLineIndex);            // extract string
-                        txtString.setText("Data Received = " + dataInPrint);
-                        int dataLength = dataInPrint.length();                                      //get length of data received
-                        txtStringLength.setText("String Length = " + String.valueOf(dataLength));
+            if (msg.what == handlerState) {
+                String readMessage = (String) msg.obj;
+                //will keep combining the chars until end-of-line
+                befEndLine = befEndLine + readMessage;
+                // determine the end-of-line
+                int endOfLineIndex = befEndLine.indexOf("\n");
 
-                        sensorView0.setText("string sent: " + recDataString); // show what we received
-                        //When sent from bluetooth all data was sent at once
-                        /*if (recDataString.charAt(0) == '#')                                         //if it starts with # we know it is what we are looking for
-                        {
-                            String sensor0 = recDataString.substring(1, 5);                         //get sensor value from string between indices 1-5
-                            String sensor1 = recDataString.substring(6, 10);                        //same again...
-                            String sensor2 = recDataString.substring(11, 15);
-                            String sensor3 = recDataString.substring(16, 20);
+                if (endOfLineIndex != -1) { //check if character is there if not skip
 
-                            sensorView0.setText(" Sensor 0 Voltage = " + sensor0 + "V");            //update the textviews with sensor values
-                            sensorView1.setText(" Sensor 1 Voltage = " + sensor1 + "V");
-                            sensorView2.setText(" Sensor 2 Voltage = " + sensor2 + "V");
-                            sensorView3.setText(" Sensor 3 Voltage = " + sensor3 + "V");
-                        }*/
-                        /*if(recDataString.equals("Alarm")){
-                            Intent buzz= new Intent(MainActivity.this,backgroundService.class);
-                            MainActivity.this.startService(buzz);
-                        }*/
-                        recDataString.delete(0, recDataString.length());                            //clear all string data
-                        // strIncom =" ";
-                        dataInPrint = " ";
+                    String dataInPrint = befEndLine.substring(0, endOfLineIndex);    // extract string
+                    String str, curStr;
+
+                    received.setText(dataInPrint);
+
+                    if(endOfLineIndex > 5 ){
+                        str = dataInPrint.substring(0, 6);
+                        if(str.equals("status")){
+                            curStr = dataInPrint.substring(6, endOfLineIndex);
+                            status.setText(curStr);
+                        }
                     }
+                    if(endOfLineIndex > 3 ){
+                        str = dataInPrint.substring(0, 4);
+
+                        if(str.equals("name")){
+                            curStr = dataInPrint.substring(4, endOfLineIndex);
+                            nameFromDevice.setText(curStr);
+                        }
+                    }
+                    if(dataInPrint.equals("Alarm")){
+                        Intent buzz= new Intent(MainActivity.this,backgroundService.class);
+                        MainActivity.this.startService(buzz);
+                    }
+                    //Clear the data held in string
+                    befEndLine = "";
+
                 }
+            }
+
             }
         };
 
@@ -125,40 +130,38 @@ public class MainActivity extends Activity {
         //Get MAC address from DeviceListActivity via intent
         Intent intent = getIntent();
 
-        //Get the MAC address from the DeviceListActivty via EXTRA
+        //Get the MAC address from the DeviceListActivity via EXTRA
         address = intent.getStringExtra(DeviceListActivity.EXTRA_DEVICE_ADDRESS);
 
         //create device and set the MAC address
         BluetoothDevice device = btAdapter.getRemoteDevice(address);
 
-        try {
-            btSocket = createBluetoothSocket(device);
-        } catch (IOException e) {
-            Toast.makeText(getBaseContext(), "Socket creation failed", Toast.LENGTH_LONG).show();
-        }
-        // Establish the Bluetooth socket connection.
-        try
-        {
-            btSocket.connect();
-        } catch (IOException e) {
-            try
-            {
-                btSocket.close();
-            } catch (IOException e2)
-            {
-                //insert code to deal with this
-            }
-        }
-        mConnectedThread = new ConnectedThread(btSocket);
-        mConnectedThread.start();
 
-        //I send a character when resuming.beginning transmission to check device is connected
-        //If it is not an exception will be thrown in the write method and finish() will be called
-        mConnectedThread.write("x");
+            try {
+                btSocket = createBluetoothSocket(device);
+            } catch (IOException e) {
+                Toast.makeText(getBaseContext(), "Socket creation failed", Toast.LENGTH_LONG).show();
+            }
+            // Establish the Bluetooth socket connection.
+            try {
+                btSocket.connect();
+            } catch (IOException e) {
+                try {
+                    btSocket.close();
+                } catch (IOException e2) {
+                    //insert code to deal with this
+                }
+            }
+            mConnectedThread = new ConnectedThread(btSocket);
+            mConnectedThread.start();
+
+            //I send a character when resuming.beginning transmission to check device is connected
+            //If it is not an exception will be thrown in the write method and finish() will be called
+            mConnectedThread.write("x");
     }
 
     //we want to leave btSockets open when leaving activity because of background checks.
-    /*@Override
+    @Override
     public void onPause()
     {
         super.onPause();
@@ -169,7 +172,7 @@ public class MainActivity extends Activity {
         } catch (IOException e2) {
             //insert code to deal with this
         }
-    }*/
+    }
     @Override
     public void onDestroy()
     {
@@ -178,7 +181,6 @@ public class MainActivity extends Activity {
         Intent intent = new Intent(MainActivity.this, backgroundService.class);
         MainActivity.this.stopService(intent);
 
-        super.onPause();
         try
         {
             //Don't leave Bluetooth sockets open when leaving destroying activity
@@ -224,20 +226,52 @@ public class MainActivity extends Activity {
         }
 
         public void run() {
-            byte[] buffer = new byte[256];
+           byte[] buffer = new byte[512];
             int bytes;
 
             // Keep looping to listen for received messages
             while (true) {
                 try {
-                    bytes = mmInStream.read(buffer);            //read bytes from input buffer
-                    String readMessage = new String(buffer, 0, bytes);
-                    // Send the obtained bytes to the UI Activity via handler
-                    bluetoothIn.obtainMessage(handlerState, bytes, -1, readMessage).sendToTarget();
+                    //There's a problem where it's skipping the first 2 bytes sleep slows down
+                    //might be a race condition
+
+                    bytes = mmInStream.available();
+                    while( bytes> 0 ){
+                        bytes = mmInStream.read(buffer);            //read bytes from input buffer
+                        String readMessage = new String(buffer, 0, bytes);
+                        // Send the obtained bytes to the UI Activity via handler
+
+                        bluetoothIn.obtainMessage(handlerState, bytes, -1, readMessage).sendToTarget();
+                    }
+
+
+
                 } catch (IOException e) {
                     break;
                 }
             }
+//            byte[] buffer = new byte[1024];
+//            int bytes = 0;
+//            while (true) {
+//
+//                //Read from the InputStream
+//
+//                try {
+//                    buffer[bytes] = (byte) mmInStream.read();
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//                //Send the obtained bytes to the UI Activity
+//                if (buffer[bytes] ==  '\n')
+//                {
+//                    bluetoothIn.obtainMessage(handlerState, bytes, -1, buffer).sendToTarget();
+//                    bytes=0;
+//                }
+//                else{
+//                    bytes++;
+//                }
+//            }
+
         }
         //write method
         public void write(String input) {

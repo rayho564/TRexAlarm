@@ -33,8 +33,9 @@ volatile uint16_t Pulse_Time;
 	char DistinStr[25];
 	uint16_t Distance = 0;
 	int def_dist = 0;
-	int dist_diff = 2; //2 cm diff will cause alarm
+	int dist_diff = 3; //3 cm diff will cause alarm
 	char name[30] = "Default_name";
+	unsigned char* nameStr = "name";
 //--------End Shared Variables------------------------------------------------
 
 //--------User defined FSMs---------------------------------------------------
@@ -43,11 +44,11 @@ enum SM1_States { SM1_wait, SM1_on, SM1_polling, SM1_rename };
 int SMTick1(int state) {
 	// Local Variables
 	
-
-	// 1 = on
-	// 2 = off
-	// 3 = set new default
-	// 4 = set name
+	// '0' = default value for wait
+	// '1' = on
+	// '2' = off
+	// '3' = set new default
+	// '4' = set name
 
 	//transitions
 	switch (state) {
@@ -85,21 +86,28 @@ int SMTick1(int state) {
 				
 			}
 			
-			if(Data_in == 2)
+			if(Data_in == '2')
 			{
 				state = SM1_wait;
 			}
-			else if(Data_in == 3)
+			else if(Data_in == '3')
 			{
 				state = SM1_on;
 			}
-			else if(Data_in == 4){
+			else if(Data_in == '4')
+			{
 				state = SM1_rename;
+			}
+			else
+			{
+				state = SM1_polling;
 			}
 		break;
 
 		case SM1_rename:
 			Data_in = 0;
+			
+				
 			state = SM1_polling;
 		break;
 
@@ -119,37 +127,60 @@ int SMTick1(int state) {
 			//send status of PULSE i.e. PULSE ON
 			if( USART_IsSendReady(0) != 0 )
 			{
-				USART_SendString( "PULSE_ON", 0);
+				USART_SendString( "statusON", 0);
+
 				//USART_Send('A', 0);
 				PORTB = 0x01;
 			}
 			Data_in = 0;
 			//get first distance to set default
-			def_dist = get_send_dist();
+			//get_send_dist();
+			get_dist();
+			def_dist = Distance;
+
+			state = SM1_polling;
 
 		break;
 
 		case SM1_polling:
 
 			//Constantly polling to see if different from default
-			if( USART_IsSendReady(0) != 0 )
+			//debugging purposes
+			/*if( USART_IsSendReady(0) != 0 )
 			{
 				USART_SendString( "Polling", 0);
 				//PORTB = 0x00;
-			}
-			get_send_dist();
-			if((Distance < def_dist-dist_diff) || (Distance > def_dist+dist_diff))
+			}*/
+			//state = SM1_wait;
+			//get_send_dist();
+			Data_in = 0;
+			get_dist();
+
+			if((Distance < (def_dist-dist_diff)) || (Distance > (def_dist+dist_diff)))
 			{
 				//Send Alarm to alert if Distance is +-2 compared to default
 				USART_SendString("Alarm", 0);
-				USART_SendString(name, 0);
+				_delay_ms(500);
+
 				
+				char str[80];
+				strcpy(str, nameStr);
+				strcat(str, name);
+
+				USART_SendString(str, 0);
+
+				//if alarmed go back to wait for acknowledgement
+				state = SM1_wait;
 			}
 					
 		break;
 
 		case SM1_rename:
-			name = USART_GetString();
+			//wait until full string is sent
+			while( USART_HasReceived(0) == 0 ){;}
+			//strcpy(name, USART_GetString(0));
+			USART_GetString(name, 0);
+			USART_SendString(name, 0);
 		break;
 
 		default:
@@ -215,7 +246,7 @@ int main(void)
 
 	unsigned short i; // Scheduler for-loop iterator
 	
-    while (1) 
+    /*while (1) 
     {
 		for ( i = 0; i < numTasks; i++ ) {
 			// Task is ready to tick
@@ -230,7 +261,8 @@ int main(void)
 		while(!TimerFlag);
 		TimerFlag = 0;
 
-	}
+	}*/
+	USART_SendString("AT+NAMEname\n" , 0);
 	
 }
 
@@ -255,6 +287,24 @@ void get_send_dist(){
 	
 	sprintf(DistinStr,"%d",Distance); // conversion
 	USART_SendString(DistinStr, 0);
+	_delay_ms(500);
+
+
 	//_delay_ms(50);
 	TimerOn();
+}
+void get_dist(){
+	USS_Trigger(); // triggering
+	while ((PINA & ECHOMSK) == 0) { ; } //wait for rising edge of Echo
+	TCCR1B = (1<<CS10);                 //start timer div1
+	while ((PINA & ECHOMSK) != 0) { ; } //wait for falling edge
+	TCCR1B = 0;                         //stop timer
+	Pulse_Time = TCNT1; // take what's in TCNT1 timer
+	TCNT1 = 0x00; //reset what's in TCNT1 timer
+	
+	Distance = Pulse_Time / 588.2; // get distance measurement
+
+	//_delay_ms(50);
+	TimerOn();
+
 }

@@ -6,7 +6,7 @@
 
 #ifndef USART_1284_H
 #define USART_1284_H
-
+#include <util/delay.h>
 #include <string.h>
 // USART Setup Values
 #define F_CPU 8000000UL // Assume uC operates at 8MHz
@@ -116,18 +116,16 @@ unsigned char USART_Receive(unsigned char usartNum)
 	}
 }
 
-unsigned char* USART_GetString (unsigned char usartNum)
+void USART_GetString (unsigned char* name, unsigned char usartNum)
 {
 	
-	char line[30];
-	int index  i = 0;
+	int i = 0;
 	while(1) {
-		line[i] = USART_Receive();
-		if (line[i] == '\n') break;
+		name[i] = USART_Receive(0);
+		if (name[i] == '9') break;
 		i++;
 	}
-	line[i] = 0;
-
+	name[i] = 0;
 }
 
 void USART_SendString( unsigned char *sendMe, unsigned char usartNum ) {
@@ -135,8 +133,13 @@ void USART_SendString( unsigned char *sendMe, unsigned char usartNum ) {
 	if (usartNum != 1) {
 		for (int i = 0; i < strlen(sendMe); i++){
 			while (( UCSR0A & (1<<UDRE0))  == 0){};
+			if(sendMe[i] == NULL)
+			{
+			break;
+			}
 			UDR0 = sendMe[i];
 		}
+		USART_Send('\n', 0);
 	}
 	else {
 		for (int i = 0; i < strlen(sendMe); i++){
