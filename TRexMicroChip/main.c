@@ -26,6 +26,7 @@
 #define ECHOMSK (1<<Echo)
 
 void USS_Trigger(void);
+void BT_rename( unsigned char *sendMe);
 volatile uint16_t Pulse_Time;
 
 //--------Shared Variables----------------------------------------------------
@@ -36,6 +37,7 @@ volatile uint16_t Pulse_Time;
 	int dist_diff = 3; //3 cm diff will cause alarm
 	char name[30] = "Default_name";
 	unsigned char* nameStr = "name";
+	unsigned char* discStr = "disconnect";
 //--------End Shared Variables------------------------------------------------
 
 //--------User defined FSMs---------------------------------------------------
@@ -127,7 +129,7 @@ int SMTick1(int state) {
 			//send status of PULSE i.e. PULSE ON
 			if( USART_IsSendReady(0) != 0 )
 			{
-				USART_SendString( "statusON", 0);
+				USART_SendString( "statusON", 1, 0);
 
 				//USART_Send('A', 0);
 				PORTB = 0x01;
@@ -148,7 +150,7 @@ int SMTick1(int state) {
 			//debugging purposes
 			/*if( USART_IsSendReady(0) != 0 )
 			{
-				USART_SendString( "Polling", 0);
+				USART_SendString( "Polling", 1, 0);
 				//PORTB = 0x00;
 			}*/
 			//state = SM1_wait;
@@ -159,7 +161,7 @@ int SMTick1(int state) {
 			if((Distance < (def_dist-dist_diff)) || (Distance > (def_dist+dist_diff)))
 			{
 				//Send Alarm to alert if Distance is +-2 compared to default
-				USART_SendString("Alarm", 0);
+				USART_SendString("Alarm", 1, 0);
 				_delay_ms(500);
 
 				
@@ -167,7 +169,7 @@ int SMTick1(int state) {
 				strcpy(str, nameStr);
 				strcat(str, name);
 
-				USART_SendString(str, 0);
+				USART_SendString(str, 1, 0);
 
 				//if alarmed go back to wait for acknowledgement
 				state = SM1_wait;
@@ -177,10 +179,14 @@ int SMTick1(int state) {
 
 		case SM1_rename:
 			//wait until full string is sent
+			USART_SendString("statusRenaming", 1, 0);
+
 			while( USART_HasReceived(0) == 0 ){;}
 			//strcpy(name, USART_GetString(0));
-			USART_GetString(name, 0);
-			USART_SendString(name, 0);
+			//USART_GetString(name, 0);
+			//USART_SendString(name, 1, 0);
+			
+			BT_rename(name);
 		break;
 
 		default:
@@ -246,7 +252,7 @@ int main(void)
 
 	unsigned short i; // Scheduler for-loop iterator
 	
-    /*while (1) 
+    while (1) 
     {
 		for ( i = 0; i < numTasks; i++ ) {
 			// Task is ready to tick
@@ -261,8 +267,8 @@ int main(void)
 		while(!TimerFlag);
 		TimerFlag = 0;
 
-	}*/
-	USART_SendString("AT+NAMEname\n" , 0);
+	}
+	
 	
 }
 
@@ -286,7 +292,7 @@ void get_send_dist(){
 	Distance = Pulse_Time / 588.2; // get distance measurement
 	
 	sprintf(DistinStr,"%d",Distance); // conversion
-	USART_SendString(DistinStr, 0);
+	USART_SendString(DistinStr, 1, 0);
 	_delay_ms(500);
 
 
@@ -306,5 +312,16 @@ void get_dist(){
 
 	//_delay_ms(50);
 	TimerOn();
+
+}
+
+void BT_rename( unsigned char *sendMe ) {
+		USART_SendString(discStr, 1, 0);
+		//give some time to dc
+		_delay_ms(50);
+		//USART_SendString("AT+NAME", 0, 0);
+		//USART_SendString(name, 0, 0);
+		//USART_Send(0x0d, 0);
+		//USART_Send(0x0a, 0);
 
 }

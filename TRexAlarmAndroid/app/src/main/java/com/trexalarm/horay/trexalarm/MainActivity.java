@@ -5,21 +5,25 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.UUID;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
+import android.text.InputType;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
-    Button btnOn, btnOff;
+    Button btnOn, btnOff, rename;
     TextView txtArduino, txtString, txtStringLength, received, status, nameFromDevice;
     Handler bluetoothIn;
 
@@ -35,7 +39,7 @@ public class MainActivity extends Activity {
 
     //TODO::Change to array of MAC addresses
     // String for MAC address
-    private static String address;
+    private static String address, m_Text;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -46,6 +50,8 @@ public class MainActivity extends Activity {
         //Link the buttons and textViews to respective views
         btnOn = (Button) findViewById(R.id.buttonOn);
         btnOff = (Button) findViewById(R.id.buttonOff);
+        rename = (Button) findViewById(R.id.rename);
+
         txtString = (TextView) findViewById(R.id.txtString);
         txtStringLength = (TextView) findViewById(R.id.testView1);
         status = (TextView) findViewById(R.id.status);
@@ -68,24 +74,54 @@ public class MainActivity extends Activity {
 
                     received.setText(dataInPrint);
 
-                    if(endOfLineIndex > 5 ){
+                    if(endOfLineIndex >= 10 ){
+                        str = dataInPrint.substring(0, 10);
+
+                        if(str.equals("disconnect")){
+                            try {
+                                mConnectedThread.interrupt();
+                                btSocket.close();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            status.setText("Renaming..");
+                            try {
+                                Thread.sleep(1000);
+                            } catch (InterruptedException e) {
+                                // TODO Auto-generated catch block
+                                e.printStackTrace();
+                            }
+//                            try {
+//                                btSocket.connect();
+//                            } catch (IOException e) {
+//                                e.printStackTrace();
+//                            }
+                            onResume();
+//                            mConnectedThread = new ConnectedThread(btSocket);
+//                            mConnectedThread.start();
+//                            mConnectedThread.write("x");
+
+                        }
+                    }
+                    if(endOfLineIndex >= 6 ){
                         str = dataInPrint.substring(0, 6);
                         if(str.equals("status")){
                             curStr = dataInPrint.substring(6, endOfLineIndex);
                             status.setText(curStr);
                         }
                     }
-                    if(endOfLineIndex > 3 ){
+                    /*if(endOfLineIndex >= 4 ){
                         str = dataInPrint.substring(0, 4);
 
                         if(str.equals("name")){
                             curStr = dataInPrint.substring(4, endOfLineIndex);
                             nameFromDevice.setText(curStr);
                         }
-                    }
+                    }*/
                     if(dataInPrint.equals("Alarm")){
                         Intent buzz= new Intent(MainActivity.this,backgroundService.class);
                         MainActivity.this.startService(buzz);
+
                     }
                     //Clear the data held in string
                     befEndLine = "";
@@ -96,23 +132,68 @@ public class MainActivity extends Activity {
             }
         };
 
-        btAdapter = BluetoothAdapter.getDefaultAdapter();                                           // get Bluetooth adapter
+        btAdapter = BluetoothAdapter.getDefaultAdapter();  // get Bluetooth adapter
         checkBTState();
 
         // Set up onClick listeners for buttons to send 1 or 0 to turn on/off LED
         btnOff.setOnClickListener(new OnClickListener() {
             public void onClick(View v) {
                 mConnectedThread.write("0");    // Send "0" via Bluetooth
-                Toast.makeText(getBaseContext(), "Turn off LED", Toast.LENGTH_SHORT).show();
-                Intent buzz= new Intent(MainActivity.this,backgroundService.class);
-                MainActivity.this.startService(buzz);
+                //Toast.makeText(getBaseContext(), "Turn off sensor", Toast.LENGTH_SHORT).show();
+                //String name = btAdapter.getName();
+                String name = getBluetoothName(btSocket);
+                Toast.makeText(getBaseContext(), name, Toast.LENGTH_LONG).show();
+                //nameFromDevice.setText(name);
             }
         });
 
         btnOn.setOnClickListener(new OnClickListener() {
             public void onClick(View v) {
                 mConnectedThread.write("1");    // Send "1" via Bluetooth
-                Toast.makeText(getBaseContext(), "Turn on LED", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getBaseContext(), "Turn on sensor", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        rename.setOnClickListener(new OnClickListener() {
+            public void onClick(View v) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                builder.setTitle("Please enter a new name. Warning: The sensor will disconnect for atleast 2 seconds");
+
+                // Set up the input
+                final EditText input = new EditText(MainActivity.this);
+                // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
+                //input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                builder.setView(input);
+
+                // Set up the buttons
+                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        m_Text = input.getText().toString();
+                        if(m_Text.length() <= 0){
+                            Toast.makeText(getBaseContext(), "Please enter a name", Toast.LENGTH_LONG).show();
+                        }
+                        else{
+                            mConnectedThread.write("4");
+                            try {
+                                Thread.sleep(100);
+                            } catch (InterruptedException e) {
+                                // TODO Auto-generated catch block
+                                e.printStackTrace();
+                            }
+                            mConnectedThread.write("a");
+                            mConnectedThread.write("\n");
+                        }
+                    }
+                });
+                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+
+                builder.show();
             }
         });
     }
@@ -232,8 +313,6 @@ public class MainActivity extends Activity {
             // Keep looping to listen for received messages
             while (true) {
                 try {
-                    //There's a problem where it's skipping the first 2 bytes sleep slows down
-                    //might be a race condition
 
                     bytes = mmInStream.available();
                     while( bytes> 0 ){
@@ -242,35 +321,17 @@ public class MainActivity extends Activity {
                         // Send the obtained bytes to the UI Activity via handler
 
                         bluetoothIn.obtainMessage(handlerState, bytes, -1, readMessage).sendToTarget();
+                        //String name = btAdapter.getName();
+                        //String name = getBluetoothName(btSocket);
+                        //Toast.makeText(getBaseContext(), name, Toast.LENGTH_LONG).show();
+                        //nameFromDevice.setText(name);
+
                     }
-
-
 
                 } catch (IOException e) {
                     break;
                 }
             }
-//            byte[] buffer = new byte[1024];
-//            int bytes = 0;
-//            while (true) {
-//
-//                //Read from the InputStream
-//
-//                try {
-//                    buffer[bytes] = (byte) mmInStream.read();
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-//                //Send the obtained bytes to the UI Activity
-//                if (buffer[bytes] ==  '\n')
-//                {
-//                    bluetoothIn.obtainMessage(handlerState, bytes, -1, buffer).sendToTarget();
-//                    bytes=0;
-//                }
-//                else{
-//                    bytes++;
-//                }
-//            }
 
         }
         //write method
@@ -285,6 +346,17 @@ public class MainActivity extends Activity {
 
             }
         }
+    }
+
+    public String getBluetoothName(BluetoothSocket btSocket){
+
+        BluetoothDevice connectedDevice = btSocket.getRemoteDevice();
+        String name = connectedDevice.getName();
+        if(name == null){
+            Toast.makeText(getBaseContext(), "Name is NULL!", Toast.LENGTH_LONG).show();
+            name = connectedDevice.getAddress();
+        }
+        return name;
     }
 
 

@@ -42,6 +42,13 @@ android:paddingTop="@dimen/activity_vertical_margin" >
     android:layout_alignParentRight="true"
     android:text="OFF" />
 
+    <Button
+        android:id="@+id/rename"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_toRightOf="@id/buttonOn"
+        android:text="Rename"/>
+
     <TextView
         android:id="@+id/received"
         android:layout_width="wrap_content"
@@ -51,15 +58,15 @@ android:paddingTop="@dimen/activity_vertical_margin" >
         android:text="a????"
         android:textAppearance="?android:attr/textAppearanceMedium" />
 
-<TextView
-    android:id="@+id/status"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:layout_centerHorizontal="true"
-    android:layout_below="@+id/received"
-    android:layout_marginTop="196dp"
-    android:text="Sensor 0"
-    android:textAppearance="?android:attr/textAppearanceMedium" />
+    <TextView
+        android:id="@+id/status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@+id/received"
+        android:text="Sensor 0"
+        android:textAppearance="?android:attr/textAppearanceMedium" />
+
     <TextView
         android:id="@+id/nameFromDevice"
         android:layout_width="wrap_content"
@@ -68,5 +75,6 @@ android:paddingTop="@dimen/activity_vertical_margin" >
         android:layout_below="@+id/status"
         android:text="Name"
         android:textAppearance="?android:attr/textAppearanceMedium" />
+
 
 </RelativeLayout>

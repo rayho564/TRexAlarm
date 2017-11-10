@@ -122,24 +122,25 @@ void USART_GetString (unsigned char* name, unsigned char usartNum)
 	int i = 0;
 	while(1) {
 		name[i] = USART_Receive(0);
-		if (name[i] == '9') break;
+		if (name[i] == '\n') break;
 		i++;
 	}
 	name[i] = 0;
 }
 
-void USART_SendString( unsigned char *sendMe, unsigned char usartNum ) {
+void USART_SendString( unsigned char *sendMe, unsigned char withEndLine, unsigned char usartNum ) {
 
 	if (usartNum != 1) {
 		for (int i = 0; i < strlen(sendMe); i++){
 			while (( UCSR0A & (1<<UDRE0))  == 0){};
-			if(sendMe[i] == NULL)
-			{
-			break;
-			}
+			if(sendMe[i] == NULL){break;}
 			UDR0 = sendMe[i];
+			
 		}
-		USART_Send('\n', 0);
+		if(withEndLine == 1)
+		{
+			USART_Send('\n', 0);
+		}
 	}
 	else {
 		for (int i = 0; i < strlen(sendMe); i++){
@@ -148,5 +149,6 @@ void USART_SendString( unsigned char *sendMe, unsigned char usartNum ) {
 		}
 	}
 }
+
 
 #endif USART_1284_H
