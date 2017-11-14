@@ -27,6 +27,7 @@
 
 void USS_Trigger(void);
 void BT_rename( char *sendMe);
+void BT_changePin( char *sendMe);
 void get_dist();
 volatile uint16_t Pulse_Time;
 
@@ -37,22 +38,24 @@ volatile uint16_t Pulse_Time;
 	int def_dist = 0;
 	int dist_diff = 3; //3 cm diff will cause alarm
 	char name[30] = "Default_name";
+	char pin[30] = "1234";
 	char* nameStr = "name";
+	char* pinStr = "pass";
 	char* discStr = "disconnect";
-	char* reccStr = "reconnect";
 //--------End Shared Variables------------------------------------------------
 
 //--------User defined FSMs---------------------------------------------------
-enum SM1_States { SM1_wait, SM1_on, SM1_polling, SM1_rename };
+enum SM1_States { SM1_wait, SM1_on, SM1_polling, SM1_rename, SM1_changePin };
 //Enumeration of states.
 int SMTick1(int state) {
 	// Local Variables
 	
 	// '0' = default value for wait
 	// '1' = on
-	// '2' = off
+	// '0' = off
 	// '3' = set new default
 	// '4' = set name
+	// '5' = change pass
 
 	//transitions
 	switch (state) {
@@ -70,10 +73,6 @@ int SMTick1(int state) {
 		{
 			state = SM1_on;
 		}
-		else if(Data_in == '2')
-		{
-			state = SM1_wait;
-		}
 		
 		break;
 
@@ -89,9 +88,9 @@ int SMTick1(int state) {
 				USART_Flush(0);
 				
 			}
-			
-			if(Data_in == '2')
+			if(Data_in == '0')
 			{
+				PORTB = 0x01;
 				state = SM1_wait;
 			}
 			else if(Data_in == '3')
@@ -102,9 +101,13 @@ int SMTick1(int state) {
 			{
 				state = SM1_rename;
 			}
+			else if(Data_in == '5')
+			{
+				state = SM1_changePin;
+			}
 			else
 			{
-				state = SM1_polling;
+				state = SM1_wait;
 			}
 		break;
 
@@ -113,6 +116,12 @@ int SMTick1(int state) {
 			
 				
 			state = SM1_polling;
+		break;
+		case SM1_changePin:
+		Data_in = 0;
+		
+		
+		state = SM1_wait;
 		break;
 
 		default:
@@ -123,6 +132,7 @@ int SMTick1(int state) {
 	//State machine actions
 	switch(state) {
 		case SM1_wait:
+		USART_SendString( "statusOFF", 1, 0);
 
 
 		break;
@@ -167,11 +177,11 @@ int SMTick1(int state) {
 				_delay_ms(500);
 
 				
-				char str[80];
-				strcpy(str, nameStr);
-				strcat(str, name);
+				//char str[80];
+				//strcpy(str, nameStr);
+				//strcat(str, name);
 
-				USART_SendString(str, 1, 0);
+				//USART_SendString(str, 1, 0);
 
 				//if alarmed go back to wait for acknowledgement
 				state = SM1_wait;
@@ -189,6 +199,14 @@ int SMTick1(int state) {
 			//USART_SendString(name, 1, 0);
 			
 			BT_rename(name);
+		break;
+		case SM1_changePin:
+		//wait until full string is sent
+		USART_SendString("statusChanging Pin", 1, 0);
+
+		USART_GetString(pin, 0);
+		
+		BT_changePin(pin);
 		break;
 
 		default:
@@ -332,5 +350,22 @@ void BT_rename( char *sendMe ) {
 
 
 		//USART_SendString(reccStr, 2, 0);
+
+}
+void BT_changePin( char *sendMe ) {
+	_delay_ms(500);
+
+	USART_SendString(discStr, 2, 0);
+
+	//give some time to dc
+	_delay_ms(2000);
+	
+	USART_SendString("AT+PIN", 0, 0);
+	USART_SendString(pin, 0, 0);
+	USART_Send(0x0d, 0);
+	USART_Send(0x0a, 0);
+
+
+	//USART_SendString(reccStr, 2, 0);
 
 }

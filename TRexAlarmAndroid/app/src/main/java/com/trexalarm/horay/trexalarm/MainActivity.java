@@ -23,7 +23,7 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
-    Button btnOn, btnOff, rename;
+    Button btnOn, btnOff, rename, changePin;
     TextView txtArduino, txtString, txtStringLength, received, status, nameFromDevice;
     Handler bluetoothIn;
 
@@ -39,7 +39,7 @@ public class MainActivity extends Activity {
 
     //TODO::Change to array of MAC addresses
     // String for MAC address
-    private static String address, m_Text;
+    private static String address, m_Text, pin, pinConfirm;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -51,7 +51,9 @@ public class MainActivity extends Activity {
         btnOn = (Button) findViewById(R.id.buttonOn);
         btnOff = (Button) findViewById(R.id.buttonOff);
         rename = (Button) findViewById(R.id.rename);
+        changePin = (Button) findViewById(R.id.changePin);
 
+        nameFromDevice = (TextView) findViewById(R.id.nameFromDevice);
         txtString = (TextView) findViewById(R.id.txtString);
         txtStringLength = (TextView) findViewById(R.id.testView1);
         status = (TextView) findViewById(R.id.status);
@@ -111,6 +113,10 @@ public class MainActivity extends Activity {
                     if(dataInPrint.equals("Alarm")){
                         Intent buzz= new Intent(MainActivity.this,backgroundService.class);
                         MainActivity.this.startService(buzz);
+                        //String name = btAdapter.getName();
+                        String name = getBluetoothName(btSocket);
+                        Toast.makeText(getBaseContext(), name, Toast.LENGTH_LONG).show();
+                        nameFromDevice.setText(name);
 
                     }
                     //Clear the data held in string
@@ -146,44 +152,133 @@ public class MainActivity extends Activity {
 
         rename.setOnClickListener(new OnClickListener() {
             public void onClick(View v) {
-                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                builder.setTitle("Please enter a new name. Warning: The sensor will disconnect for atleast 2 seconds");
+                final AlertDialog builder = new AlertDialog.Builder(MainActivity.this)
+                        .setView(v)
+                        .setTitle("Please enter a new name. Warning: The sensor will disconnect.'\\n' Please reconnect after 2 seconds.")
+                        .setPositiveButton(android.R.string.ok, null) //Set to null. We override the onclick
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .create();
 
                 // Set up the input
                 final EditText input = new EditText(MainActivity.this);
-                // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
-                //input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
                 builder.setView(input);
 
-                // Set up the buttons
-                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        m_Text = input.getText().toString();
-                        if(m_Text.length() <= 0){
-                            Toast.makeText(getBaseContext(), "Please enter a name", Toast.LENGTH_LONG).show();
-                        }
-                        else{
-                            mConnectedThread.write("4");
-                            try {
-                                Thread.sleep(500);
-                            } catch (InterruptedException e) {
-                                // TODO Auto-generated catch block
-                                e.printStackTrace();
-                            }
-                            mConnectedThread.write(m_Text);
-                            mConnectedThread.write("\n");
-                        }
-                    }
-                });
-                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.cancel();
-                    }
-                });
+                builder.setOnShowListener(new DialogInterface.OnShowListener() {
 
+                    @Override
+                    public void onShow(final DialogInterface dialog) {
+
+                        Button button = ((AlertDialog) dialog).getButton(AlertDialog.BUTTON_POSITIVE);
+                        button.setOnClickListener(new View.OnClickListener() {
+
+                            @Override
+                            public void onClick(View view) {
+                                m_Text = input.getText().toString();
+                                if(m_Text.length() <= 0){
+                                    Toast.makeText(getBaseContext(), "Please enter a name", Toast.LENGTH_LONG).show();
+                                }
+                                else{
+                                    mConnectedThread.write("4");
+                                    try {
+                                        Thread.sleep(500);
+                                    } catch (InterruptedException e) {
+                                        // TODO Auto-generated catch block
+                                        e.printStackTrace();
+                                    }
+                                    mConnectedThread.write(m_Text);
+                                    mConnectedThread.write("\n");
+                                    dialog.dismiss();
+
+                                }
+
+                                //Dismiss once everything is OK.
+                            }
+                        });
+                        Button button2 = ((AlertDialog) dialog).getButton(AlertDialog.BUTTON_NEGATIVE);
+                        button2.setOnClickListener(new View.OnClickListener() {
+
+                            @Override
+                            public void onClick(View view) {
+
+                                //Dismiss once everything is OK.
+                                dialog.dismiss();
+                            }
+                        });
+                    }
+                });
                 builder.show();
+            }
+        });
+
+        changePin.setOnClickListener(new OnClickListener() {
+            public void onClick(View v) {
+                //TODO::Change the layout of this AlertDialog builder
+                /*final AlertDialog builder = new AlertDialog.Builder(MainActivity.this)
+                        .setView(v)
+                        .setTitle("Please enter a new Pin. Warning: The sensor will disconnect.'\\n' Please reconnect after 2 seconds.")
+                        .setPositiveButton(android.R.string.ok, null) //Set to null. We override the onclick
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .create();
+
+                // Set up the input
+                final EditText input = new EditText(MainActivity.this);
+                input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                builder.setView(input);
+
+                final TextView retype = new TextView(MainActivity.this);
+                retype.setText("Please retype the pin");
+                builder.setView(retype);
+
+                final EditText input2 = new EditText(MainActivity.this);
+                input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                builder.setView(input2);
+
+                builder.setOnShowListener(new DialogInterface.OnShowListener() {
+
+                    @Override
+                    public void onShow(final DialogInterface dialog) {
+
+                        Button button = ((AlertDialog) dialog).getButton(AlertDialog.BUTTON_POSITIVE);
+                        button.setOnClickListener(new View.OnClickListener() {
+
+                            @Override
+                            public void onClick(View view) {
+                                pin = input.getText().toString();
+                                pinConfirm = input2.getText().toString();
+                                if(pin.length() <= 0){
+                                    Toast.makeText(getBaseContext(), "Please enter a pin", Toast.LENGTH_LONG).show();
+                                }
+                                else if(!pin.equals(pinConfirm)){
+                                    Toast.makeText(getBaseContext(), "Pin do not match", Toast.LENGTH_LONG).show();
+                                }
+                                else{
+                                    mConnectedThread.write("5");
+                                    try {
+                                        Thread.sleep(500);
+                                    } catch (InterruptedException e) {
+                                        // TODO Auto-generated catch block
+                                        e.printStackTrace();
+                                    }
+                                    mConnectedThread.write(pin);
+                                    mConnectedThread.write("\n");
+                                    dialog.dismiss();
+                                }
+                                //Dismiss once everything is OK.
+                            }
+                        });
+                        Button button2 = ((AlertDialog) dialog).getButton(AlertDialog.BUTTON_NEGATIVE);
+                        button2.setOnClickListener(new View.OnClickListener() {
+
+                            @Override
+                            public void onClick(View view) {
+
+                                //Dismiss once everything is OK.
+                                dialog.dismiss();
+                            }
+                        });
+                    }
+                });
+                builder.show();*/
             }
         });
     }
@@ -311,10 +406,7 @@ public class MainActivity extends Activity {
                         // Send the obtained bytes to the UI Activity via handler
 
                         bluetoothIn.obtainMessage(handlerState, bytes, -1, readMessage).sendToTarget();
-                        //String name = btAdapter.getName();
-                        //String name = getBluetoothName(btSocket);
-                        //Toast.makeText(getBaseContext(), name, Toast.LENGTH_LONG).show();
-                        //nameFromDevice.setText(name);
+
 
                     }
 
