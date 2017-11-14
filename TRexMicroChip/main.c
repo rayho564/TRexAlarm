@@ -26,7 +26,8 @@
 #define ECHOMSK (1<<Echo)
 
 void USS_Trigger(void);
-void BT_rename( unsigned char *sendMe);
+void BT_rename( char *sendMe);
+void get_dist();
 volatile uint16_t Pulse_Time;
 
 //--------Shared Variables----------------------------------------------------
@@ -36,8 +37,9 @@ volatile uint16_t Pulse_Time;
 	int def_dist = 0;
 	int dist_diff = 3; //3 cm diff will cause alarm
 	char name[30] = "Default_name";
-	unsigned char* nameStr = "name";
-	unsigned char* discStr = "disconnect";
+	char* nameStr = "name";
+	char* discStr = "disconnect";
+	char* reccStr = "reconnect";
 //--------End Shared Variables------------------------------------------------
 
 //--------User defined FSMs---------------------------------------------------
@@ -181,9 +183,9 @@ int SMTick1(int state) {
 			//wait until full string is sent
 			USART_SendString("statusRenaming", 1, 0);
 
-			while( USART_HasReceived(0) == 0 ){;}
+			//while( USART_HasReceived(0) == 0 ){;}
 			//strcpy(name, USART_GetString(0));
-			//USART_GetString(name, 0);
+			USART_GetString(name, 0);
 			//USART_SendString(name, 1, 0);
 			
 			BT_rename(name);
@@ -211,7 +213,7 @@ int main(void)
 	USS_DDR &=~1<<Echo;    //  and echo as input
 
 	// Period for the tasks
-	unsigned long int SMTick1_calc = 150;
+	unsigned long int SMTick1_calc = 50;
 	unsigned long int SMTick2_calc = 150;
 	unsigned long int SMTick3_calc = 150;
 
@@ -315,13 +317,20 @@ void get_dist(){
 
 }
 
-void BT_rename( unsigned char *sendMe ) {
-		USART_SendString(discStr, 1, 0);
+void BT_rename( char *sendMe ) {
+		_delay_ms(500);
+
+		USART_SendString(discStr, 2, 0);
+
 		//give some time to dc
-		_delay_ms(50);
-		//USART_SendString("AT+NAME", 0, 0);
-		//USART_SendString(name, 0, 0);
-		//USART_Send(0x0d, 0);
-		//USART_Send(0x0a, 0);
+		_delay_ms(2000);
+		
+		USART_SendString("AT+NAME", 0, 0);
+		USART_SendString(name, 0, 0);
+		USART_Send(0x0d, 0);
+		USART_Send(0x0a, 0);
+
+
+		//USART_SendString(reccStr, 2, 0);
 
 }

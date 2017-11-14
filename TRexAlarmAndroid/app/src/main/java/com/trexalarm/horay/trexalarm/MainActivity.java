@@ -66,6 +66,7 @@ public class MainActivity extends Activity {
                 befEndLine = befEndLine + readMessage;
                 // determine the end-of-line
                 int endOfLineIndex = befEndLine.indexOf("\n");
+                int endOfCommand = befEndLine.indexOf("\r");
 
                 if (endOfLineIndex != -1) { //check if character is there if not skip
 
@@ -74,35 +75,24 @@ public class MainActivity extends Activity {
 
                     received.setText(dataInPrint);
 
-                    if(endOfLineIndex >= 10 ){
-                        str = dataInPrint.substring(0, 10);
+                    if(endOfCommand != -1){
+                        if(endOfCommand >= 10 ){
+                            str = dataInPrint.substring(0, 10);
 
-                        if(str.equals("disconnect")){
-                            try {
-                                mConnectedThread.interrupt();
-                                btSocket.close();
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                            status.setText("Renaming..");
-                            try {
-                                Thread.sleep(1000);
-                            } catch (InterruptedException e) {
-                                // TODO Auto-generated catch block
-                                e.printStackTrace();
-                            }
-//                            try {
-//                                btSocket.connect();
-//                            } catch (IOException e) {
-//                                e.printStackTrace();
-//                            }
-                            onResume();
-//                            mConnectedThread = new ConnectedThread(btSocket);
-//                            mConnectedThread.start();
-//                            mConnectedThread.write("x");
+                            if(str.equals("disconnect")){
 
+                                 mConnectedThread.interrupt();
+                                try {
+                                    btSocket.close();
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+
+                            }
                         }
                     }
+
+
                     if(endOfLineIndex >= 6 ){
                         str = dataInPrint.substring(0, 6);
                         if(str.equals("status")){
@@ -176,12 +166,12 @@ public class MainActivity extends Activity {
                         else{
                             mConnectedThread.write("4");
                             try {
-                                Thread.sleep(100);
+                                Thread.sleep(500);
                             } catch (InterruptedException e) {
                                 // TODO Auto-generated catch block
                                 e.printStackTrace();
                             }
-                            mConnectedThread.write("a");
+                            mConnectedThread.write(m_Text);
                             mConnectedThread.write("\n");
                         }
                     }
@@ -358,6 +348,5 @@ public class MainActivity extends Activity {
         }
         return name;
     }
-
 
 }
