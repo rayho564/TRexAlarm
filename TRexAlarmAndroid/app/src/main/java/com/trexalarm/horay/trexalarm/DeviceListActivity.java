@@ -4,6 +4,7 @@ package com.trexalarm.horay.trexalarm;
  * Created by HoRay on 11/6/2017.
  */
 
+import java.util.ArrayList;
 import java.util.Set;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
@@ -26,9 +27,12 @@ public class DeviceListActivity extends Activity {
     private static final String TAG = "DeviceListActivity";
     private static final boolean D = true;
 
+    String names;
+    ArrayList<String> addresses = new ArrayList<String>();
+    String address;
 
-    // declare button for launching website and textview for connection status
-    Button tlbutton;
+    Button connectButton, rechoose;
+
     TextView textView1;
 
     // EXTRA string to send on to mainactivity
@@ -42,6 +46,35 @@ public class DeviceListActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.device_list);
+
+        connectButton = (Button) findViewById(R.id.connectButton);
+        rechoose = (Button) findViewById(R.id.rechoose);
+
+        connectButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                // Make an intent to start next activity while taking an extra which is the MAC address.
+                Intent i = new Intent(DeviceListActivity.this, MainActivity.class);
+                i.putExtra("addressList", addresses);
+                if(addresses.size() > 0){
+                    Toast.makeText(getBaseContext(), "Connecting", Toast.LENGTH_SHORT).show();
+
+                    startActivity(i);
+                }
+                else{
+                    Toast.makeText(getBaseContext(), "None selected", Toast.LENGTH_SHORT).show();
+                }
+
+            }
+        });
+        rechoose.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                // Make an intent to start next activity while taking an extra which is the MAC address.
+                addresses.clear();
+                names = "";
+                textView1.setText(names);
+
+            }
+        });
     }
 
     @Override
@@ -50,6 +83,10 @@ public class DeviceListActivity extends Activity {
         super.onResume();
         //***************
         checkBTState();
+
+
+        addresses.clear(); //check this later
+        names = " ";
 
         textView1 = (TextView) findViewById(R.id.connecting);
         textView1.setTextSize(40);
@@ -86,20 +123,34 @@ public class DeviceListActivity extends Activity {
     //       Allow user to know to "Select all sensors" then a button that says connect
     //       If none selected error out.
     // Set up on-click listener for the list (nicked this - unsure)
+    //Make sure it's not reselectable
     private OnItemClickListener mDeviceClickListener = new OnItemClickListener() {
         public void onItemClick(AdapterView<?> av, View v, int arg2, long arg3) {
 
-            textView1.setText("Connecting...");
+            //textView1.setText("Connecting...");
             // Get the device MAC address, which is the last 17 chars in the View
+            names = "";
             String info = ((TextView) v).getText().toString();
-            String address = info.substring(info.length() - 17);
+            address = info.substring(info.length() - 17);
+            Boolean skip = false;
+            for(int i = 0; i < addresses.size(); i ++) {
+                if(addresses.get(i) == address){
+                    skip = true;
+                    break;
+                }
+            }
+            if(!skip){
+                addresses.add(address);
+            }
 
-            // Make an intent to start next activity while taking an extra which is the MAC address.
-            Intent i = new Intent(DeviceListActivity.this, MainActivity.class);
-            i.putExtra(EXTRA_DEVICE_ADDRESS, address);
-            startActivity(i);
+            for(int i = 0; i < addresses.size(); i ++) {
+                names += addresses.get(i) + "\n";
+            }
+            textView1.setText(names);
+
         }
     };
+
 
     private void checkBTState() {
         // Check device has Bluetooth and that it is turned on

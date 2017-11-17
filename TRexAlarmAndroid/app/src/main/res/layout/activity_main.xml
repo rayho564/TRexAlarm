@@ -54,6 +54,13 @@ android:paddingTop="@dimen/activity_vertical_margin" >
         android:layout_height="wrap_content"
         android:layout_below="@+id/rename"
         android:text="Change Pin"/>
+    <Button
+        android:id="@+id/clearLog"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:text="Clear Log"/>
 
     <TextView
         android:id="@+id/received"
@@ -79,6 +86,15 @@ android:paddingTop="@dimen/activity_vertical_margin" >
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:layout_below="@+id/status"
+        android:text="Name"
+        android:textAppearance="?android:attr/textAppearanceMedium" />
+
+    <TextView
+        android:id="@+id/log"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@+id/nameFromDevice"
         android:text="Name"
         android:textAppearance="?android:attr/textAppearanceMedium" />
 

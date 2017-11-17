@@ -32,7 +32,7 @@ void get_dist();
 volatile uint16_t Pulse_Time;
 
 //--------Shared Variables----------------------------------------------------
-	char Data_in;
+	char Data_in = 1;
 	char DistinStr[25];
 	uint16_t Distance = 0;
 	int def_dist = 0;
@@ -52,7 +52,7 @@ int SMTick1(int state) {
 	
 	// '0' = default value for wait
 	// '1' = on
-	// '0' = off
+	// '2' = off
 	// '3' = set new default
 	// '4' = set name
 	// '5' = change pass
@@ -88,9 +88,9 @@ int SMTick1(int state) {
 				USART_Flush(0);
 				
 			}
-			if(Data_in == '0')
+			if(Data_in == '2')
 			{
-				PORTB = 0x01;
+				PORTB = 0x00;
 				state = SM1_wait;
 			}
 			else if(Data_in == '3')
@@ -107,7 +107,7 @@ int SMTick1(int state) {
 			}
 			else
 			{
-				state = SM1_wait;
+				state = SM1_polling;
 			}
 		break;
 
@@ -115,7 +115,7 @@ int SMTick1(int state) {
 			Data_in = 0;
 			
 				
-			state = SM1_polling;
+			state = SM1_wait;
 		break;
 		case SM1_changePin:
 		Data_in = 0;
@@ -132,7 +132,7 @@ int SMTick1(int state) {
 	//State machine actions
 	switch(state) {
 		case SM1_wait:
-		USART_SendString( "statusOFF", 1, 0);
+		//USART_SendString( "statusOFF", 1, 0);
 
 
 		break;
@@ -145,6 +145,7 @@ int SMTick1(int state) {
 
 				//USART_Send('A', 0);
 				PORTB = 0x01;
+
 			}
 			Data_in = 0;
 			//get first distance to set default
